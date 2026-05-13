@@ -95,6 +95,7 @@ class MyMesh : public mesh::Mesh, public CommonCLICallbacks {
   unsigned long next_local_advert, next_flood_advert;
   bool _logging;
   bool region_load_active;
+  bool _radio_configured;
   NodePrefs _prefs;
   TransportKeyStore key_store;
   RegionMap region_map, temp_map;
@@ -144,6 +145,9 @@ protected:
   int getInterferenceThreshold() const override {
     return _prefs.interference_threshold;
   }
+  bool canTransmit() const override {
+    return _radio_configured;
+  }
   int getAGCResetInterval() const override {
     return ((int)_prefs.agc_reset_interval) * 4000;   // milliseconds
   }
@@ -184,6 +188,9 @@ public:
 
   void savePrefs() override {
     _cli.savePrefs(_fs);
+    _radio_configured = true;
+    updateAdvertTimer();
+    updateFloodAdvertTimer();
   }
 
   void sendFloodScoped(const TransportKey& scope, mesh::Packet* pkt, uint32_t delay_millis, uint8_t path_hash_size);

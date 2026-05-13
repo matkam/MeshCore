@@ -264,10 +264,14 @@ void Dispatcher::processRecvPacket(Packet* pkt) {
   } else if (action == ACTION_MANUAL_HOLD) {
     // sub-class is wanting to manually hold Packet instance, and call releasePacket() at appropriate time
   } else {   // ACTION_RETRANSMIT*
-    uint8_t priority = (action >> 24) - 1;
-    uint32_t _delay = action & 0xFFFFFF;
+    if (!canTransmit()) {
+      _mgr->free(pkt);
+    } else {
+      uint8_t priority = (action >> 24) - 1;
+      uint32_t _delay = action & 0xFFFFFF;
 
-    _mgr->queueOutbound(pkt, priority, futureMillis(_delay));
+      _mgr->queueOutbound(pkt, priority, futureMillis(_delay));
+    }
   }
 }
 
@@ -370,6 +374,8 @@ void Dispatcher::releasePacket(Packet* packet) {
 void Dispatcher::sendPacket(Packet* packet, uint8_t priority, uint32_t delay_millis) {
   if (!Packet::isValidPathLen(packet->path_len) || packet->payload_len > MAX_PACKET_PAYLOAD) {
     MESH_DEBUG_PRINTLN("%s Dispatcher::sendPacket(): ERROR: invalid packet... path_len=%d, payload_len=%d", getLogDateTime(), (uint32_t) packet->path_len, (uint32_t) packet->payload_len);
+    _mgr->free(packet);
+  } else if (!canTransmit()) {
     _mgr->free(packet);
   } else {
     _mgr->queueOutbound(packet, priority, futureMillis(delay_millis));

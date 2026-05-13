@@ -622,6 +622,7 @@ MyMesh::MyMesh(mesh::MainBoard &board, mesh::Radio &radio, mesh::MillisecondCloc
   dirty_contacts_expiry = 0;
   _logging = false;
   region_load_active = false;
+  _radio_configured = false;
   set_radio_at = revert_radio_at = 0;
 
   // defaults
@@ -665,6 +666,7 @@ MyMesh::MyMesh(mesh::MainBoard &board, mesh::Radio &radio, mesh::MillisecondCloc
 void MyMesh::begin(FILESYSTEM *fs) {
   mesh::Mesh::begin();
   _fs = fs;
+  _radio_configured = _fs->exists("/com_prefs") || _fs->exists("/node_prefs");
   // load persisted prefs
   _cli.loadPrefs(_fs);
 
@@ -752,6 +754,9 @@ bool MyMesh::formatFileSystem() {
 }
 
 void MyMesh::sendSelfAdvertisement(int delay_millis, bool flood) {
+  if (!_radio_configured) {
+    return;
+  }
   mesh::Packet *pkt = createSelfAdvert();
   if (pkt) {
     if (flood) {
@@ -765,14 +770,14 @@ void MyMesh::sendSelfAdvertisement(int delay_millis, bool flood) {
 }
 
 void MyMesh::updateAdvertTimer() {
-  if (_prefs.advert_interval > 0) { // schedule local advert timer
+  if (_radio_configured && _prefs.advert_interval > 0) { // schedule local advert timer
     next_local_advert = futureMillis((uint32_t)_prefs.advert_interval * 2 * 60 * 1000);
   } else {
     next_local_advert = 0; // stop the timer
   }
 }
 void MyMesh::updateFloodAdvertTimer() {
-  if (_prefs.flood_advert_interval > 0) { // schedule flood advert timer
+  if (_radio_configured && _prefs.flood_advert_interval > 0) { // schedule flood advert timer
     next_flood_advert = futureMillis(((uint32_t)_prefs.flood_advert_interval) * 60 * 60 * 1000);
   } else {
     next_flood_advert = 0; // stop the timer
